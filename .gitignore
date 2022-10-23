@@ -1,3 +1,6 @@
+### Klox ###
+/test.kx
+
 ### IntelliJ IDEA ###
 out/
 !**/src/main/**/out/

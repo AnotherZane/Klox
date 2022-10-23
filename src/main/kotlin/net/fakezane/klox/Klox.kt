@@ -11,6 +11,7 @@ object Klox {
     private val interpreter = Interpreter()
     var hadError = false
     var hadRuntimeError = false
+    var isREPL = false
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -22,6 +23,7 @@ object Klox {
             runFile(args[0])
         }
         else {
+            isREPL = true
             runPrompt()
         }
     }
@@ -49,13 +51,13 @@ object Klox {
     private fun run(source: String) {
         val scanner = Scanner(source)
         val tokens = scanner.scanTokens()
-        val parser = Parser(tokens)
-        val expression = parser.parse()
+        val parser = Parser(tokens, isREPL)
+        val statements = parser.parse()
 
         // Stop if there was a syntax error.
         if (hadError) return
 
-        if (expression != null) interpreter.interpret(expression)
+        interpreter.interpret(statements, isREPL)
     }
 
     fun error(line: Int, message: String) {
@@ -75,9 +77,7 @@ object Klox {
     }
 
     private fun report(line: Int, where: String, message: String) {
-        System.err.println(
-            "[line $line] Error$where: $message"
-        )
+        System.err.println("[line $line] Error$where: $message")
         hadError = true
     }
 }

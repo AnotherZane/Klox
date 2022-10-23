@@ -3,7 +3,6 @@ package net.fakezane.tool
 import java.io.PrintWriter
 import kotlin.system.exitProcess
 
-
 object GenerateAst {
     @JvmStatic
     fun main(args: Array<String>) {
@@ -13,16 +12,20 @@ object GenerateAst {
         }
         val outputDir = args[0]
         defineAst(outputDir, "Expr", mapOf(
+            "Assign" to "name: Token, value: Expr",
             "Binary" to "left: Expr, operator: Token, right: Expr",
             "Grouping" to "expression: Expr",
             "Literal" to "value: Any?",
-            "Unary" to "operator: Token, right: Expr"
+            "Unary" to "operator: Token, right: Expr",
+            "Variable" to "name: Token"
             )
         )
 
         defineAst(outputDir, "Stmt", mapOf(
+            "Block" to "statements: List<Stmt?>",
             "Expression" to "expression: Expr",
-            "Print" to "expression: Expr"
+            "Print" to "expression: Expr",
+            "Var" to "name: Token, initializer: Expr?"
             )
         )
     }
@@ -31,7 +34,7 @@ object GenerateAst {
         val path = "$outputDir/$baseName.kt"
         val writer = PrintWriter(path, "UTF-8")
 
-        writer.println("package net.fakezane.lox;")
+        writer.println("package net.fakezane.klox;")
         writer.println()
         writer.println("abstract class $baseName {")
 

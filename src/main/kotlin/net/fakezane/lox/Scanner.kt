@@ -53,11 +53,15 @@ class Scanner(private val source: String) {
             '+' -> addToken(PLUS)
             ';' -> addToken(SEMICOLON)
             '*' -> addToken(STAR)
+            '^' -> addToken(CARET)
+            '~' -> addToken(TILDE)
 
             '!' -> addToken(if (match('=')) BANG_EQUAL else BANG)
             '=' -> addToken(if (match('=')) EQUAL_EQUAL else EQUAL)
-            '<' -> addToken(if (match('=')) LESS_EQUAL else LESS)
-            '>' -> addToken(if (match('=')) GREATER_EQUAL else GREATER)
+            '<' -> addToken(if (match('=')) LESS_EQUAL else if (match('<')) LESS_LESS else LESS)
+            '>' -> addToken(if (match('=')) GREATER_EQUAL else if (match('>')) GREATER_GREATER else GREATER)
+            '&' -> addToken(if (match('&')) AMPERSAND_AMPERSAND else AMPERSAND)
+            '|' -> addToken(if (match('|')) PIPE_PIPE else PIPE)
 
             '/' -> if (match('/')) {
                 while (peek() != '\n' && !isAtEnd())

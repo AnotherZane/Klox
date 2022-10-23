@@ -29,7 +29,7 @@ class Interpreter {
                     BANG -> !isTruthy(right)
                     TILDE -> {
                         checkNumberOperand(expr.operator, right)
-                        (right as Int).inv()
+                        asInt(right).inv()
                     }
                     else -> null // Unreachable
                 }
@@ -83,17 +83,25 @@ class Interpreter {
 
                     AMPERSAND -> {
                         checkNumberOperands(expr.operator, left, right)
-                        (left as Int).and(right as Int)
+                        asInt(left).and(asInt(right))
                     }
                     AMPERSAND_AMPERSAND -> isTruthy(left) and isTruthy(right)
                     PIPE -> {
                         checkNumberOperands(expr.operator, left, right)
-                        (left as Int).or(right as Int)
+                        asInt(left).or(asInt(right))
                     }
                     PIPE_PIPE -> isTruthy(left) or isTruthy(right)
                     CARET -> {
                         checkNumberOperands(expr.operator, left, right)
-                        (left as Int).xor(right as Int)
+                        asInt(left).xor(asInt(right))
+                    }
+                    GREATER_GREATER -> {
+                        checkNumberOperands(expr.operator, left, right)
+                        asInt(left).shr(asInt(right))
+                    }
+                    LESS_LESS -> {
+                        checkNumberOperands(expr.operator, left, right)
+                        asInt(left).shl(asInt(right))
                     }
                     else -> null // Unreachable
                 }
@@ -121,6 +129,8 @@ class Interpreter {
         if (a == null && b == null) return true
         return if (a == null) false else a == b
     }
+
+    private fun asInt(a: Any?) = (a as Double).toInt()
 
     private fun stringify(obj: Any?): String {
         if (obj == null) return "nil"

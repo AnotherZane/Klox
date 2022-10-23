@@ -1,0 +1,13 @@
+// A comment
+var a = 10;
+var b = 11;
+
+fun add(x, y) {
+    return x + y;
+}
+
+print add(a, b);
+
+var c = "a
+multiline
+string"; // supports this haha!

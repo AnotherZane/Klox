@@ -1,10 +1,13 @@
-import TokenType.*
+package net.fakezane.lox
+
+import Klox
+import net.fakezane.lox.TokenType.*
 
 class Scanner(private val source: String) {
     private val tokens = arrayListOf<Token>()
-    private var start = 0;
-    private var current = 0;
-    private var line = 1;
+    private var start = 0
+    private var current = 0
+    private var line = 1
 
     companion object {
         val keywords = hashMapOf<String, TokenType>(
@@ -33,7 +36,7 @@ class Scanner(private val source: String) {
             scanToken()
         }
 
-        tokens.add(Token(TokenType.EOF, "", null, line));
+        tokens.add(Token(EOF, "", null, line));
         return tokens;
     }
 
@@ -72,7 +75,7 @@ class Scanner(private val source: String) {
             else -> {
                 if (isDigit(c)) number()
                 else if (isAlpha(c)) identifier()
-                else error(line, "Unexpected character.")
+                else Klox.error(line, "Unexpected character.")
             }
         }
     }
@@ -105,7 +108,7 @@ class Scanner(private val source: String) {
             advance()
         }
         if (isAtEnd()) {
-            error(line, "Unterminated string.")
+            Klox.error(line, "Unterminated string.")
             return
         }
 
@@ -128,7 +131,7 @@ class Scanner(private val source: String) {
 
     private fun peekNext(): Char = if (current + 1 >= source.length) '\u0000' else source[current + 1]
 
-    private fun isAlpha(c: Char): Boolean = (c in 'a'..'z') || (c in 'A'..'Z') || c == '_';
+    private fun isAlpha(c: Char): Boolean = (c in 'a'..'z') || (c in 'A'..'Z') || c == '_'
 
     private fun isAlphaNumeric(c: Char): Boolean = isAlpha(c) || isDigit(c)
 

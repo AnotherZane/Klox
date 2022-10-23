@@ -28,6 +28,17 @@ class Interpreter {
                 value
             }
             is Expr.Literal -> expr.value
+            is Expr.Logical -> {
+                val left = evaluate(expr.left)
+
+                if (expr.operator.type == OR || expr.operator.type == PIPE_PIPE) {
+                    if (isTruthy(left)) return left
+                } else {
+                    if (!isTruthy(left)) return left
+                }
+
+                evaluate(expr.right)
+            }
             is Expr.Grouping -> evaluate(expr.expression)
             is Expr.Unary -> evaluateUnary(expr)
             is Expr.Binary -> evaluateBinary(expr)
@@ -40,6 +51,21 @@ class Interpreter {
         return when (stmt) {
             is Stmt.Block -> executeBlock(stmt.statements, Environment(environment))
             is Stmt.Expression -> evaluate(stmt.expression)
+            is Stmt.If -> {
+                var value: Any? = null
+
+                if (isTruthy(evaluate(stmt.condition)))
+                    value = execute(stmt.thenBranch)
+                else if (stmt.elseBranch != null)
+                    value = execute(stmt.elseBranch)
+
+                value
+            }
+            is Stmt.Print -> {
+                val value = evaluate(stmt.expression)
+                println(stringify(value))
+                value
+            }
             is Stmt.Var -> {
                 var value: Any? = null
 
@@ -48,10 +74,10 @@ class Interpreter {
 
                 environment.define(stmt.name.lexeme, value)
             }
-            is Stmt.Print -> {
-                val value = evaluate(stmt.expression)
-                println(stringify(value))
-                value
+            is Stmt.While -> {
+                while (isTruthy(evaluate(stmt.condition))) {
+                    execute(stmt.body)
+                }
             }
             else -> null // Unreachable
         }
@@ -136,12 +162,10 @@ class Interpreter {
                 checkNumberOperands(expr.operator, left, right)
                 asInt(left).and(asInt(right))
             }
-            AMPERSAND_AMPERSAND -> isTruthy(left) and isTruthy(right)
             PIPE -> {
                 checkNumberOperands(expr.operator, left, right)
                 asInt(left).or(asInt(right))
             }
-            PIPE_PIPE -> isTruthy(left) or isTruthy(right)
             CARET -> {
                 checkNumberOperands(expr.operator, left, right)
                 asInt(left).xor(asInt(right))

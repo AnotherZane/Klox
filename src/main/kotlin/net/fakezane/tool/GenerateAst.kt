@@ -16,6 +16,7 @@ object GenerateAst {
             "Binary" to "left: Expr, operator: Token, right: Expr",
             "Grouping" to "expression: Expr",
             "Literal" to "value: Any?",
+            "Logical" to "left: Expr, operator: Token, right: Expr",
             "Unary" to "operator: Token, right: Expr",
             "Variable" to "name: Token"
             )
@@ -24,8 +25,10 @@ object GenerateAst {
         defineAst(outputDir, "Stmt", mapOf(
             "Block" to "statements: List<Stmt?>",
             "Expression" to "expression: Expr",
+            "If" to "condition: Expr, thenBranch: Stmt, elseBranch: Stmt?",
             "Print" to "expression: Expr",
-            "Var" to "name: Token, initializer: Expr?"
+            "Var" to "name: Token, initializer: Expr?",
+            "While" to "condition: Expr, body: Stmt"
             )
         )
     }

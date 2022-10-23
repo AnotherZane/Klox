@@ -1,8 +1,8 @@
 package net.fakezane.klox
 
 import Klox
-import net.fakezane.klox.Expr.Assign
 import net.fakezane.klox.TokenType.*
+import java.util.*
 
 
 class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
@@ -41,17 +41,85 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
     }
 
     private fun statement(): Stmt {
-        return if (match(PRINT))
+        return if (match(FOR))
+            forStatement()
+        else if (match(IF))
+            ifStatement()
+        else if (match(PRINT))
             printStatement()
+        else if (match(WHILE))
+            whileStatement()
         else if (match(LEFT_BRACE))
             Stmt.Block(block())
         else expressionStatement()
     }
 
+    private fun forStatement(): Stmt {
+        consume(LEFT_PAREN, "Expect '(' after 'for'.")
+
+        val initializer: Stmt? = if (match(SEMICOLON)) {
+            null
+        } else if (match(VAR)) {
+            varDeclaration()
+        } else {
+            expressionStatement()
+        }
+
+        var condition: Expr? = null
+        if (!check(SEMICOLON)) {
+            condition = expression()
+        }
+        consume(SEMICOLON, "Expect ';' after loop condition.")
+
+        var increment: Expr? = null
+        if (!check(RIGHT_PAREN)) {
+            increment = expression()
+        }
+        consume(RIGHT_PAREN, "Expect ')' after for clauses.")
+
+        var body = statement()
+
+        if (increment != null) {
+            body = Stmt.Block(listOf(body, Stmt.Expression(increment)))
+        }
+
+        if (condition == null) condition = Expr.Literal(true)
+        body = Stmt.While(condition, body)
+
+        if (initializer != null) {
+            body = Stmt.Block(listOf(initializer, body))
+        }
+
+        return body
+    }
+
+    private fun ifStatement(): Stmt {
+        consume(LEFT_PAREN, "Expect '(' after 'if'.")
+        val condition = expression()
+        consume(RIGHT_PAREN, "Expect ')' after if condition.")
+
+        val thenBranch = statement()
+        var elseBranch: Stmt? = null
+
+        if (match(ELSE)) elseBranch = statement()
+
+        return Stmt.If(condition, thenBranch, elseBranch)
+    }
+
+
     private fun printStatement(): Stmt {
         val value = expression()
         consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(value)
+    }
+
+    private fun whileStatement(): Stmt {
+        consume(LEFT_PAREN, "Expect '(' after 'while'.")
+        val condition = expression()
+        consume(RIGHT_PAREN, "Expect ')' after condition.")
+
+        val body = statement()
+        return Stmt.While(condition, body)
     }
 
     private fun expressionStatement(): Stmt {
@@ -74,13 +142,13 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
     private fun expression(): Expr = assignment()
 
     private fun assignment(): Expr {
-        val expr = equality()
+        val expr = or()
 
         if (match(EQUAL)) {
             val equals = previous()
             val value = assignment()
 
-            if (expr is Expr.Variable) return Assign(expr.name, value)
+            if (expr is Expr.Variable) return Expr.Assign(expr.name, value)
 
             error(equals, "Invalid assignment target.")
         }
@@ -88,12 +156,35 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return expr
     }
 
+    private fun or(): Expr {
+        var expr = and()
+
+        while (match(OR, PIPE_PIPE)) {
+            val operator = previous()
+            val right = and()
+            expr = Expr.Logical(expr, operator, right)
+        }
+
+        return expr
+    }
+
+    private fun and(): Expr {
+        var expr = equality()
+
+        while (match(AND, AMPERSAND_AMPERSAND)) {
+            val operator = previous()
+            val right = equality()
+            expr = Expr.Logical(expr, operator, right)
+        }
+
+        return expr
+    }
 
     private fun equality(): Expr = leftAssociative(::bitwise, BANG_EQUAL, EQUAL_EQUAL)
 
     private fun bitwise(): Expr = leftAssociative(::comparison, AMPERSAND, PIPE, CARET, GREATER_GREATER, LESS_LESS)
 
-    private fun comparison(): Expr = leftAssociative(::term, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, AMPERSAND_AMPERSAND, PIPE_PIPE)
+    private fun comparison(): Expr = leftAssociative(::term, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
 
     private fun term(): Expr = leftAssociative(::factor, MINUS, PLUS)
 
@@ -127,7 +218,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         var expr = function()
 
         while (match(*types)){
-            val operator: Token = previous()
+            val operator = previous()
             val right = function()
             expr = Expr.Binary(expr, operator, right)
         }

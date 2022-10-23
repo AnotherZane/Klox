@@ -19,6 +19,12 @@ object GenerateAst {
             "Unary" to "operator: Token, right: Expr"
             )
         )
+
+        defineAst(outputDir, "Stmt", mapOf(
+            "Expression" to "expression: Expr",
+            "Print" to "expression: Expr"
+            )
+        )
     }
 
     private fun defineAst(outputDir: String, baseName: String, types: Map<String, String>) {

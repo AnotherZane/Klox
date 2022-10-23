@@ -1,7 +1,7 @@
-package net.fakezane.lox
+package net.fakezane.klox
 
 import Klox
-import net.fakezane.lox.TokenType.*
+import net.fakezane.klox.TokenType.*
 
 class Scanner(private val source: String) {
     private val tokens = arrayListOf<Token>()

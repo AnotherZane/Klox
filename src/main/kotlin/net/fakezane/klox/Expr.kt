@@ -1,4 +1,4 @@
-package net.fakezane.lox;
+package net.fakezane.klox;
 
 abstract class Expr {
     class Binary(val left: Expr, val operator: Token, val right: Expr) : Expr()

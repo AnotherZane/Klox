@@ -1,4 +1,4 @@
-package net.fakezane.lox
+package net.fakezane.klox
 
 enum class TokenType {
     // Single-character tokens.

@@ -1,6 +1,6 @@
 package net.fakezane.tool
 
-import net.fakezane.lox.Expr
+import net.fakezane.klox.Expr
 
 object AstPrinter {
     private fun parenthesize(name: String, vararg exprs: Expr): String {

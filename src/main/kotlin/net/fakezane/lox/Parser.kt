@@ -23,7 +23,7 @@ class Parser(val tokens: List<Token>) {
 
     private fun bitwise(): Expr = leftAssociative(::comparison, AMPERSAND, PIPE, CARET, GREATER_GREATER, LESS_LESS)
 
-    private fun comparison(): Expr = leftAssociative(::term, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
+    private fun comparison(): Expr = leftAssociative(::term, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, AMPERSAND_AMPERSAND, PIPE_PIPE)
 
     private fun term(): Expr = leftAssociative(::factor, MINUS, PLUS)
 

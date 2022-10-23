@@ -1,5 +1,4 @@
 import net.fakezane.lox.*
-import net.fakezane.tool.AstPrinter
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.nio.charset.Charset
@@ -7,8 +6,11 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
+
 object Klox {
+    private val interpreter = Interpreter()
     var hadError = false
+    var hadRuntimeError = false
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -28,8 +30,8 @@ object Klox {
         val bytes: ByteArray = Files.readAllBytes(Paths.get(path))
         run(String(bytes, Charset.defaultCharset()))
 
-        if (hadError)
-            exitProcess(65)
+        if (hadError) exitProcess(65)
+        if (hadRuntimeError) exitProcess(70);
     }
 
     private fun runPrompt() {
@@ -53,7 +55,7 @@ object Klox {
         // Stop if there was a syntax error.
         if (hadError) return
 
-        AstPrinter.print(expression)
+        if (expression != null) interpreter.interpret(expression)
     }
 
     fun error(line: Int, message: String) {
@@ -64,7 +66,12 @@ object Klox {
         if (token.type === TokenType.EOF)
             report(token.line, " at end", message)
         else
-            report(token.line, " at '" + token.lexeme + "'", message)
+            report(token.line, " at '${token.lexeme}'", message)
+    }
+
+    fun runtimeError(error: RuntimeError) {
+        System.err.println("${error.message}\n[line ${error.token.line}]")
+        hadRuntimeError = true
     }
 
     private fun report(line: Int, where: String, message: String) {

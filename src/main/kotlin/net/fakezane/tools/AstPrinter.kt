@@ -1,4 +1,4 @@
-package net.fakezane.tool
+package net.fakezane.tools
 
 import net.fakezane.klox.Expr
 

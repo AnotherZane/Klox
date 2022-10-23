@@ -1,4 +1,4 @@
-package net.fakezane.tool
+package net.fakezane.tools
 
 import java.io.PrintWriter
 import kotlin.system.exitProcess

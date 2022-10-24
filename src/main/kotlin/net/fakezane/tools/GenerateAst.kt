@@ -50,10 +50,11 @@ object GenerateAst {
     }
 
     private fun defineType(writer: PrintWriter, baseName: String, className: String, fieldList: String) {
-        val fields = fieldList.split(", ").map { it -> "val $it" }.joinToString(", ")
-        writer.print("    class $className(")
-        writer.print(fields)
-        writer.println(") : $baseName()")
+        val fields = fieldList.split(", ").map { "val $it" }.joinToString(", ")
+        writer.print("    class $className")
+        if (!fieldList.isEmpty())
+            writer.print("($fields)")
+        writer.println(" : $baseName()")
     }
 
 }

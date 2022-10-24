@@ -41,17 +41,14 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
     }
 
     private fun statement(): Stmt {
-        return if (match(FOR))
-            forStatement()
-        else if (match(IF))
-            ifStatement()
-        else if (match(PRINT))
-            printStatement()
-        else if (match(WHILE))
-            whileStatement()
-        else if (match(LEFT_BRACE))
-            Stmt.Block(block())
-        else expressionStatement()
+        return when (matcha(FOR, IF, PRINT, WHILE, LEFT_BRACE)?.type) {
+            FOR -> forStatement()
+            IF -> ifStatement()
+            PRINT -> printStatement()
+            WHILE -> whileStatement()
+            LEFT_BRACE -> Stmt.Block(block())
+            else -> expressionStatement()
+        }
     }
 
     private fun forStatement(): Stmt {
@@ -106,7 +103,6 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return Stmt.If(condition, thenBranch, elseBranch)
     }
 
-
     private fun printStatement(): Stmt {
         val value = expression()
         consume(SEMICOLON, "Expect ';' after value.")
@@ -122,12 +118,6 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return Stmt.While(condition, body)
     }
 
-    private fun expressionStatement(): Stmt {
-        val expr = expression()
-        consume(SEMICOLON, "Expect ';' after expression.")
-        return Stmt.Expression(expr)
-    }
-
     private fun block(): List<Stmt?> {
         val statements: MutableList<Stmt?> = ArrayList()
 
@@ -137,6 +127,12 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
 
         consume(RIGHT_BRACE, "Expect '}' after block.")
         return statements
+    }
+
+    private fun expressionStatement(): Stmt {
+        val expr = expression()
+        consume(SEMICOLON, "Expect ';' after expression.")
+        return Stmt.Expression(expr)
     }
 
     private fun expression(): Expr = assignment()
@@ -201,17 +197,19 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
     }
 
     private fun primary(): Expr {
-        if (match(FALSE)) return Expr.Literal(false)
-        if (match(TRUE)) return Expr.Literal(true)
-        if (match(NIL)) return Expr.Literal(null)
-        if (match(NUMBER, STRING)) return Expr.Literal(previous().literal)
-        if (match(IDENTIFIER)) return Expr.Variable(previous())
-        if (match(LEFT_PAREN)) {
-            val expr = expression()
-            consume(RIGHT_PAREN, "Expect ')' after expression.")
-            return Expr.Grouping(expr)
+        return when (matcha(FALSE, TRUE, NIL, NUMBER, STRING, IDENTIFIER, LEFT_PAREN)?.type) {
+            FALSE -> Expr.Literal(false)
+            TRUE -> Expr.Literal(true)
+            NIL -> Expr.Literal(null)
+            NUMBER, STRING -> Expr.Literal(previous().literal)
+            IDENTIFIER -> Expr.Variable(previous())
+            LEFT_PAREN -> {
+                val expr = expression()
+                consume(RIGHT_PAREN, "Expect ')' after expression.")
+                Expr.Grouping(expr)
+            }
+            else -> throw error(peek(), "Expected expression.")
         }
-        throw error(peek(), "Expected expression.")
     }
 
     private fun leftAssociative(function: () -> Expr, vararg types: TokenType): Expr {
@@ -226,6 +224,14 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return expr
     }
 
+    private fun matcha(vararg types: TokenType): Token? {
+        for (type in types) {
+            if (check(type)) {
+                return advance()
+            }
+        }
+        return null
+    }
 
     private fun match(vararg types: TokenType): Boolean {
         for (type in types) {

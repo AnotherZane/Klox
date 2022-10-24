@@ -17,7 +17,8 @@ object GenerateAst {
             "Grouping" to "expression: Expr",
             "Literal" to "value: Any?",
             "Logical" to "left: Expr, operator: Token, right: Expr",
-            "Unary" to "operator: Token, right: Expr",
+            "Prefix" to "operator: Token, right: Expr",
+            "Postfix" to "operator: Token, left: Token",
             "Variable" to "name: Token"
             )
         )

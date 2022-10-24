@@ -19,7 +19,7 @@ object AstPrinter {
     fun formatExpr(expr: Expr): String = when (expr) {
         is Expr.Binary -> parenthesize(expr.operator.lexeme, expr.left, expr.right)
         is Expr.Grouping -> parenthesize("group", expr.expression)
-        is Expr.Unary -> parenthesize(expr.operator.lexeme, expr.right)
+        is Expr.Prefix -> parenthesize(expr.operator.lexeme, expr.right)
         is Expr.Literal -> expr.value?.toString() ?: "nil"
         else -> "Unknown"
     }

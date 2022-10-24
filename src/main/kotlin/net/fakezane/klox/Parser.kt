@@ -2,13 +2,47 @@ package net.fakezane.klox
 
 import Klox
 import net.fakezane.klox.TokenType.*
-import java.util.*
+import net.fakezane.klox.parselets.*
 
 
 class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
-    private class ParseError : RuntimeException()
+    class ParseError : RuntimeException()
 
     private var current = 0;
+    private val prefixParselets = HashMap<TokenType, PrefixParselet>()
+    private val mixfixParselets = HashMap<TokenType, MixfixParselet>()
+
+    init {
+        registerPrefixes(LiteralParselet(), TRUE, FALSE, NIL, NUMBER, STRING)
+        registerPrefixes(IdentifierParselet(), IDENTIFIER)
+        registerPrefixes(GroupingParselet(), LEFT_PAREN)
+        registerPrefixes(PrefixOperatorParselet(), BANG, MINUS, TILDE, MINUS_MINUS, PLUS_PLUS)
+        registerMixfix(PostfixOperatorParselet(Precedence.POSTFIX), MINUS_MINUS, PLUS_PLUS)
+        registerMixfix(BinaryOperatorParselet(Precedence.FACTOR), SLASH, STAR)
+        registerMixfix(BinaryOperatorParselet(Precedence.TERM), MINUS, PLUS)
+        registerMixfix(BinaryOperatorParselet(Precedence.COMPARISON), GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
+        registerMixfix(BinaryOperatorParselet(Precedence.BITWISE), AMPERSAND, PIPE, CARET, GREATER_GREATER, LESS_LESS)
+        registerMixfix(BinaryOperatorParselet(Precedence.EQUALITY), BANG_EQUAL, EQUAL_EQUAL)
+        registerMixfix(LogicalOperatorParselet(Precedence.AND), AND, AMPERSAND_AMPERSAND)
+        registerMixfix(LogicalOperatorParselet(Precedence.OR), OR, PIPE_PIPE)
+        registerMixfix(AssignmentParselet(Precedence.ASSIGNMENT), EQUAL)
+    }
+
+    fun register(type: TokenType, parselet: PrefixParselet) {
+        prefixParselets[type] = parselet
+    }
+
+    fun register(type: TokenType, parselet: MixfixParselet) {
+        mixfixParselets[type] = parselet
+    }
+
+    fun registerPrefixes(parselet: PrefixParselet, vararg types: TokenType) {
+        for (type in types) register(type, parselet)
+    }
+
+    fun registerMixfix(parselet: MixfixParselet, vararg types: TokenType) {
+        for (type in types) register(type, parselet)
+    }
 
     fun parse(): List<Stmt?> {
         val statements: MutableList<Stmt?> = ArrayList()
@@ -33,7 +67,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
 
         var initializer: Expr? = null
         if (match(EQUAL)) {
-            initializer = expression()
+            initializer = parseExpression()
         }
 
         consume(SEMICOLON, "Expect ';' after variable declaration.")
@@ -64,13 +98,13 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
 
         var condition: Expr? = null
         if (!check(SEMICOLON)) {
-            condition = expression()
+            condition = parseExpression()
         }
         consume(SEMICOLON, "Expect ';' after loop condition.")
 
         var increment: Expr? = null
         if (!check(RIGHT_PAREN)) {
-            increment = expression()
+            increment = parseExpression()
         }
         consume(RIGHT_PAREN, "Expect ')' after for clauses.")
 
@@ -92,7 +126,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
 
     private fun ifStatement(): Stmt {
         consume(LEFT_PAREN, "Expect '(' after 'if'.")
-        val condition = expression()
+        val condition = parseExpression()
         consume(RIGHT_PAREN, "Expect ')' after if condition.")
 
         val thenBranch = statement()
@@ -104,14 +138,14 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
     }
 
     private fun printStatement(): Stmt {
-        val value = expression()
+        val value = parseExpression()
         consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(value)
     }
 
     private fun whileStatement(): Stmt {
         consume(LEFT_PAREN, "Expect '(' after 'while'.")
-        val condition = expression()
+        val condition = parseExpression()
         consume(RIGHT_PAREN, "Expect ')' after condition.")
 
         val body = statement()
@@ -130,98 +164,33 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
     }
 
     private fun expressionStatement(): Stmt {
-        val expr = expression()
+        val expr = parseExpression()
         consume(SEMICOLON, "Expect ';' after expression.")
         return Stmt.Expression(expr)
     }
 
-    private fun expression(): Expr = assignment()
+    fun parseExpression(): Expr = parseExpression(0)
 
-    private fun assignment(): Expr {
-        val expr = or()
+    fun parseExpression(precedence: Int): Expr {
+        var token = advance()
+        val prefix = prefixParselets[token.type] ?: throw error(token, "Expected expression.")
 
-        if (match(EQUAL)) {
-            val equals = previous()
-            val value = assignment()
+        var left = prefix.parse(this, token)
 
-            if (expr is Expr.Variable) return Expr.Assign(expr.name, value)
+        while (precedence < getPrecedence()) {
+            token = advance()
+            val mixfix = mixfixParselets[token.type]
 
-            error(equals, "Invalid assignment target.")
-        }
-
-        return expr
-    }
-
-    private fun or(): Expr {
-        var expr = and()
-
-        while (match(OR, PIPE_PIPE)) {
-            val operator = previous()
-            val right = and()
-            expr = Expr.Logical(expr, operator, right)
-        }
-
-        return expr
-    }
-
-    private fun and(): Expr {
-        var expr = equality()
-
-        while (match(AND, AMPERSAND_AMPERSAND)) {
-            val operator = previous()
-            val right = equality()
-            expr = Expr.Logical(expr, operator, right)
-        }
-
-        return expr
-    }
-
-    private fun equality(): Expr = leftAssociative(::bitwise, BANG_EQUAL, EQUAL_EQUAL)
-
-    private fun bitwise(): Expr = leftAssociative(::comparison, AMPERSAND, PIPE, CARET, GREATER_GREATER, LESS_LESS)
-
-    private fun comparison(): Expr = leftAssociative(::term, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
-
-    private fun term(): Expr = leftAssociative(::factor, MINUS, PLUS)
-
-    private fun factor(): Expr = leftAssociative(::unary, SLASH, STAR)
-
-    private fun unary(): Expr {
-        if (match(BANG, MINUS, TILDE)) {
-            val operator = previous()
-            val right = unary()
-            return Expr.Unary(operator, right)
-        }
-
-        return primary()
-    }
-
-    private fun primary(): Expr {
-        return when (matcha(FALSE, TRUE, NIL, NUMBER, STRING, IDENTIFIER, LEFT_PAREN)?.type) {
-            FALSE -> Expr.Literal(false)
-            TRUE -> Expr.Literal(true)
-            NIL -> Expr.Literal(null)
-            NUMBER, STRING -> Expr.Literal(previous().literal)
-            IDENTIFIER -> Expr.Variable(previous())
-            LEFT_PAREN -> {
-                val expr = expression()
-                consume(RIGHT_PAREN, "Expect ')' after expression.")
-                Expr.Grouping(expr)
+            if (mixfix != null) {
+                left = mixfix.parse(this, left, token)
             }
-            else -> throw error(peek(), "Expected expression.")
         }
+        return left
     }
 
-    private fun leftAssociative(function: () -> Expr, vararg types: TokenType): Expr {
-        var expr = function()
-
-        while (match(*types)){
-            val operator = previous()
-            val right = function()
-            expr = Expr.Binary(expr, operator, right)
-        }
-
-        return expr
+    private fun getPrecedence(): Int {
+        val parser= mixfixParselets[peek().type]
+        return parser?.getPrecedence() ?: 0
     }
 
     private fun matcha(vararg types: TokenType): Token? {
@@ -243,7 +212,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return false
     }
 
-    private fun consume(type: TokenType, message: String): Token {
+    fun consume(type: TokenType, message: String): Token {
         if (check(type)) return advance()
         if (isREPL && isAtEnd()) return Token(SEMICOLON, ";", null, 1)
         throw error(peek(), message)
@@ -270,7 +239,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return tokens.get(current - 1)
     }
 
-    private fun error(token: Token, message: String): ParseError {
+    fun error(token: Token, message: String): ParseError {
         Klox.error(token, message)
         return ParseError()
     }

@@ -20,6 +20,8 @@ class Scanner(private val source: String) {
             "or" to OR,
             "while" to WHILE,
             "for" to FOR,
+            "break" to BREAK,
+            "continue" to CONTINUE,
             "var" to VAR,
             "fun" to FUN,
             "class" to CLASS,
@@ -49,13 +51,13 @@ class Scanner(private val source: String) {
             '}' -> addToken(RIGHT_BRACE)
             ',' -> addToken(COMMA)
             '.' -> addToken(DOT)
-            '-' -> addToken(MINUS)
-            '+' -> addToken(PLUS)
             ';' -> addToken(SEMICOLON)
             '*' -> addToken(STAR)
             '^' -> addToken(CARET)
             '~' -> addToken(TILDE)
 
+            '-' -> addToken(if (match('-')) MINUS_MINUS else MINUS)
+            '+' -> addToken(if (match('+')) PLUS_PLUS else PLUS)
             '!' -> addToken(if (match('=')) BANG_EQUAL else BANG)
             '=' -> addToken(if (match('=')) EQUAL_EQUAL else EQUAL)
             '<' -> addToken(if (match('=')) LESS_EQUAL else if (match('<')) LESS_LESS else LESS)

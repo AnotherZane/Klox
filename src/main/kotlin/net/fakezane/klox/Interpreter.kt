@@ -40,7 +40,8 @@ class Interpreter {
                 evaluate(expr.right)
             }
             is Expr.Grouping -> evaluate(expr.expression)
-            is Expr.Unary -> evaluateUnary(expr)
+            is Expr.Prefix -> evaluatePrefix(expr)
+            is Expr.Postfix -> evaluatePostfix(expr)
             is Expr.Binary -> evaluateBinary(expr)
             is Expr.Variable -> environment.get(expr.name)
             else -> null // Unreachable
@@ -85,18 +86,20 @@ class Interpreter {
 
     fun executeBlock(statements: List<Stmt?>, environment: Environment): Any? {
         val previous = this.environment
-        return try {
+        var returnedValue: Any? = null
+        try {
             this.environment = environment
             for (statement in statements) {
-                execute(statement!!)
+                returnedValue = execute(statement!!)
             }
         }
         finally {
             this.environment = previous
         }
+        return returnedValue
     }
 
-    private fun evaluateUnary(expr: Expr.Unary): Any? {
+    private fun evaluatePrefix(expr: Expr.Prefix): Any? {
         val right = evaluate(expr.right)
 
         return when (expr.operator.type) {
@@ -108,6 +111,32 @@ class Interpreter {
             TILDE -> {
                 checkNumberOperand(expr.operator, right)
                 asInt(right).inv()
+            }
+            MINUS_MINUS -> {
+                checkNumberOperand(expr.operator, right)
+                environment.assign((expr.right as Expr.Variable).name, (right as Double) - 1)
+                right
+            }
+            PLUS_PLUS -> {
+                checkNumberOperand(expr.operator, right)
+                environment.assign((expr.right as Expr.Variable).name, (right as Double) + 1)
+                right
+            }
+            else -> null // Unreachable
+        }
+    }
+
+    private fun evaluatePostfix(expr: Expr.Postfix): Any? {
+        val left = environment.get(expr.left)
+
+        return when (expr.operator.type) {
+            MINUS_MINUS -> {
+                checkNumberOperand(expr.operator, left)
+                environment.assign(expr.left, (left as Double) - 1)
+            }
+            PLUS_PLUS -> {
+                checkNumberOperand(expr.operator, left)
+                environment.assign(expr.left, (left as Double) + 1)
             }
             else -> null // Unreachable
         }

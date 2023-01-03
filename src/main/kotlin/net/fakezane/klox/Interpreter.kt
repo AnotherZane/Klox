@@ -4,7 +4,16 @@ import Klox
 import net.fakezane.klox.TokenType.*
 
 class Interpreter {
-    private var environment = Environment()
+    val globals: Environment = Environment()
+    private var environment = globals
+
+    init {
+        globals.define("clock", object : KloxCallable {
+            override fun arity(): Int = 0
+            override fun call(interpreter: Interpreter, arguments: List<Any?>): Any = System.currentTimeMillis() / 1000.0
+            override fun toString(): String = "<native fn clock>"
+        })
+    }
 
     fun interpret(statements: List<Stmt?>, isREPL: Boolean = false) {
         try {
@@ -44,6 +53,20 @@ class Interpreter {
             is Expr.Postfix -> evaluatePostfix(expr)
             is Expr.Binary -> evaluateBinary(expr)
             is Expr.Variable -> environment.get(expr.name)
+            is Expr.Call -> {
+                val callee = evaluate(expr.callee)
+                val arguments = expr.arguments.map { evaluate(it) }
+
+                if (callee !is KloxCallable) {
+                    throw RuntimeError(expr.paren, "Can only call functions and classes.")
+                }
+
+                if (arguments.size != callee.arity()) {
+                    throw RuntimeError(expr.paren, "Expected ${callee.arity()} arguments but got ${arguments.size}.")
+                }
+
+                callee.call(this, arguments)
+            }
             else -> null // Unreachable
         }
     }
@@ -52,6 +75,7 @@ class Interpreter {
         return when (stmt) {
             is Stmt.Block -> executeBlock(stmt.statements, Environment(environment))
             is Stmt.Expression -> evaluate(stmt.expression)
+            is Stmt.Function -> environment.define(stmt.name.lexeme, KloxFunction(stmt, environment))
             is Stmt.If -> {
                 var value: Any? = null
 
@@ -66,6 +90,10 @@ class Interpreter {
                 val value = evaluate(stmt.expression)
                 println(stringify(value))
                 value
+            }
+            is Stmt.Return -> {
+                val value = if (stmt.value != null) evaluate(stmt.value) else null
+                throw Return(value)
             }
             is Stmt.Var -> {
                 var value: Any? = null

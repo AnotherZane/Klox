@@ -12,5 +12,6 @@ object Precedence {
     const val EXPONENT = 9
     const val PREFIX = 10
     const val POSTFIX = 11
+    const val FUNCTION = 12
 }
 

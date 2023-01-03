@@ -26,6 +26,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         registerMixfix(LogicalOperatorParselet(Precedence.AND), AND, AMPERSAND_AMPERSAND)
         registerMixfix(LogicalOperatorParselet(Precedence.OR), OR, PIPE_PIPE)
         registerMixfix(AssignmentParselet(Precedence.ASSIGNMENT), EQUAL)
+        registerMixfix(CallParselet(Precedence.FUNCTION), LEFT_PAREN)
     }
 
     fun register(type: TokenType, parselet: PrefixParselet) {
@@ -55,7 +56,8 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
 
     private fun declaration(): Stmt? {
         return try {
-            if (match(VAR)) varDeclaration() else statement()
+            if (match(FUN)) function("function")
+            else if (match(VAR)) varDeclaration() else statement()
         } catch (error: ParseError) {
             synchronize()
             null
@@ -75,12 +77,13 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
     }
 
     private fun statement(): Stmt {
-        return when (matcha(FOR, IF, PRINT, WHILE, LEFT_BRACE)?.type) {
+        return when (matcha(FOR, IF, PRINT, WHILE, LEFT_BRACE, RETURN)?.type) {
             FOR -> forStatement()
             IF -> ifStatement()
             PRINT -> printStatement()
             WHILE -> whileStatement()
             LEFT_BRACE -> Stmt.Block(block())
+            RETURN -> returnStatement()
             else -> expressionStatement()
         }
     }
@@ -143,6 +146,17 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return Stmt.Print(value)
     }
 
+    private fun returnStatement(): Stmt {
+        val keyword = previous()
+        var value: Expr? = null
+        if (!check(SEMICOLON)) {
+            value = parseExpression()
+        }
+
+        consume(SEMICOLON, "Expect ';' after return value.")
+        return Stmt.Return(keyword, value)
+    }
+
     private fun whileStatement(): Stmt {
         consume(LEFT_PAREN, "Expect '(' after 'while'.")
         val condition = parseExpression()
@@ -169,6 +183,25 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return Stmt.Expression(expr)
     }
 
+    private fun function(kind: String): Stmt.Function? {
+        val name = consume(IDENTIFIER, "Expect $kind name.")
+        consume(LEFT_PAREN, "Expect '(' after $kind name.")
+        val parameters: MutableList<Token> = ArrayList()
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (parameters.size >= 255) {
+                    error(peek(), "Cannot have more than 255 parameters.")
+                }
+                parameters.add(consume(IDENTIFIER, "Expect parameter name."))
+            } while (match(COMMA))
+        }
+        consume(RIGHT_PAREN, "Expect ')' after parameters.")
+
+        consume(LEFT_BRACE, "Expect '{' before $kind body.")
+        val body = block()
+        return Stmt.Function(name, parameters, body)
+    }
+
     fun parseExpression(): Expr = parseExpression(0)
 
     fun parseExpression(precedence: Int): Expr {
@@ -193,7 +226,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return parser?.getPrecedence() ?: 0
     }
 
-    private fun matcha(vararg types: TokenType): Token? {
+    fun matcha(vararg types: TokenType): Token? {
         for (type in types) {
             if (check(type)) {
                 return advance()
@@ -202,7 +235,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return null
     }
 
-    private fun match(vararg types: TokenType): Boolean {
+    fun match(vararg types: TokenType): Boolean {
         for (type in types) {
             if (check(type)) {
                 advance()
@@ -218,7 +251,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         throw error(peek(), message)
     }
 
-    private fun check(type: TokenType): Boolean {
+    fun check(type: TokenType): Boolean {
         return if (isAtEnd()) false else peek().type === type
     }
 
@@ -231,7 +264,7 @@ class Parser(val tokens: List<Token>, private val isREPL: Boolean = false) {
         return peek().type === EOF
     }
 
-    private fun peek(): Token {
+    fun peek(): Token {
         return tokens.get(current)
     }
 

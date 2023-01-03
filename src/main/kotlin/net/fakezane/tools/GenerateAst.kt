@@ -14,6 +14,7 @@ object GenerateAst {
         defineAst(outputDir, "Expr", mapOf(
             "Assign" to "name: Token, value: Expr",
             "Binary" to "left: Expr, operator: Token, right: Expr",
+            "Call" to "callee: Expr, paren: Token, arguments: List<Expr>",
             "Grouping" to "expression: Expr",
             "Literal" to "value: Any?",
             "Logical" to "left: Expr, operator: Token, right: Expr",
@@ -26,8 +27,10 @@ object GenerateAst {
         defineAst(outputDir, "Stmt", mapOf(
             "Block" to "statements: List<Stmt?>",
             "Expression" to "expression: Expr",
+            "Function" to "name: Token, params: List<Token>, body: List<Stmt?>",
             "If" to "condition: Expr, thenBranch: Stmt, elseBranch: Stmt?",
             "Print" to "expression: Expr",
+            "Return" to "keyword: Token, value: Expr?",
             "Var" to "name: Token, initializer: Expr?",
             "While" to "condition: Expr, body: Stmt"
             )
